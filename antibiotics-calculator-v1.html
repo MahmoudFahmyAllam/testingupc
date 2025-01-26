@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPC Antibiotic Dose Calculator</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <!-- For modern browsers (optional PNG version) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icon32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icon16x16.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon512x512.png">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --error-color: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        .calculator {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        select, input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .results table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+
+        .results th, .results td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .results th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .error {
+            color: var(--error-color);
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .notes {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff3e0;
+            border-left: 4px solid #ffa726;
+            border-radius: 4px;
+        }
+
+        .disclaimer {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: #f8d7da;
+            border-radius: 4px;
+            color: #721c24;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h2>UPC Pediatric Antibiotic Dose Calculator</h2>
+        
+        <div class="input-group">
+            <div>
+                <label for="antibiotic">Select Antibiotic:</label>
+                <select id="antibiotic">
+                    <option value="amoxicillin">Amoxicillin/Clavulanic Acid</option>
+                    <option value="cefixime">Cefixime</option>
+                    <option value="cefradine">Cefradine</option>
+                    <option value="cefaclor">Cefaclor</option>
+                    <option value="cefdinir">Cefdinir</option>
+                    <option value="cefadroxil">Cefadroxil</option>
+                    <option value="clarithromycin">Clarithromycin</option>
+                    <option value="cefalexin">Cefalexin</option>
+                    <option value="cotrimoxazole">Co-trimoxazole (SMX/TMP)</option>
+                </select>
+            </div>
+            <div>
+                <label for="weight">Child's Weight (kg):</label>
+                <input type="number" id="weight" step="0.1" min="0">
+            </div>
+        </div>
+
+        <button onclick="calculateDose()">Calculate Dose</button>
+
+        <div id="error" class="error"></div>
+        <div id="notes" class="notes"></div>
+
+        <div class="results">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Strength</th>
+                        <th>Dose per Administration</th>
+                        <th>Frequency</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="disclaimer">
+            <strong>Important:</strong> This calculator provides initial estimates only. Always verify doses with current guidelines and consult a pharmacist for renal/hepatic adjustments. Antibiotic use requires confirmed bacterial infection diagnosis.
+        </div>
+    </div>
+
+    <script>
+        const antibiotics = {
+            amoxicillin: {
+                strengths: [156, 228, 312, 457, 600],
+                dose: [45, 45], // mg/kg/day
+                frequency: "Every 12 hours",
+                maxDose: null,
+                notes: "First-line for most pediatric infections"
+            },
+            cefixime: {
+                strengths: [100],
+                dose: [8, 8],
+                frequency: "Once daily or BID",
+                maxDose: 400,
+                notes: "First-line for uncomplicated UTIs"
+            },
+            cefradine: {
+                strengths: [125, 250],
+                dose: [25, 50],
+                frequency: "QID (4 times daily)",
+                notes: "Monitor for GI side effects"
+            },
+            cefaclor: {
+                strengths: [125, 250],
+                dose: [20, 40],
+                frequency: "TID (3 times daily)",
+                notes: "Avoid in penicillin allergy"
+            },
+            cefdinir: {
+                strengths: [125],
+                dose: [14, 14],
+                frequency: "Once daily or BID",
+                notes: "May cause red stools (harmless)"
+            },
+            cefadroxil: {
+                strengths: [125, 250, 500],
+                dose: [30, 30],
+                frequency: "BID (twice daily)",
+                notes: "Preferred for skin/soft tissue infections"
+            },
+            clarithromycin: {
+                strengths: [125, 250],
+                dose: [15, 15],
+                frequency: "BID (twice daily)",
+                notes: "Macrolide alternative for penicillin allergy"
+            },
+            cefalexin: {
+                strengths: [125, 250],
+                dose: [25, 50],
+                frequency: "QID (4 times daily)",
+                notes: "First-line for streptococcal infections"
+            },
+            cotrimoxazole: {
+                strengths: [200], // TMP component (40mg SMX per 5ml)
+                dose: [6, 12], // Based on TMP component
+                frequency: "BID (twice daily)",
+                notes: "Contains sulfa - check for allergies",
+                calculationNote: "Dose based on trimethoprim component"
+            }
+        };
+
+        function calculateDose() {
+            const weight = parseFloat(document.getElementById('weight').value);
+            const antibiotic = document.getElementById('antibiotic').value;
+            const errorDiv = document.getElementById('error');
+            const notesDiv = document.getElementById('notes');
+            const tbody = document.getElementById('resultsBody');
+            
+            // Reset previous content
+            errorDiv.textContent = '';
+            notesDiv.textContent = '';
+            tbody.innerHTML = '';
+
+            // Validation
+            if (isNaN(weight) || weight <= 0) {
+                errorDiv.textContent = "Please enter a valid positive weight";
+                return;
+            }
+
+            const abx = antibiotics[antibiotic];
+            let notes = [];
+            if (abx.notes) notes.push(abx.notes);
+            if (abx.calculationNote) notes.push(abx.calculationNote);
+
+            // Display notes
+            notesDiv.innerHTML = notes.join('<br>');
+
+            // Calculate for each strength
+            abx.strengths.forEach(strength => {
+                const tr = document.createElement('tr');
+                
+                // Calculate dose range
+                const doses = abx.dose.map(d => {
+                    let dailyDose = d * weight;
+                    if (abx.maxDose && dailyDose > abx.maxDose) dailyDose = abx.maxDose;
+                    const dosePerAdmin = (dailyDose * 5) / strength;
+                    return dosePerAdmin.toFixed(1);
+                });
+
+                const doseText = abx.dose[0] === abx.dose[1] 
+                    ? `${doses[0]} mL`
+                    : `${doses[0]} - ${doses[1]} mL`;
+
+                tr.innerHTML = `
+                    <td>${strength}mg/5ml</td>
+                    <td>${doseText}</td>
+                    <td>${abx.frequency}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
